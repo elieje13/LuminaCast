@@ -1,5 +1,5 @@
 # src/ui/projector_view.py
-from PyQt6.QtWidgets import QMainWindow, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QMainWindow, QLabel, QVBoxLayout, QWidget, QApplication
 from PyQt6.QtCore import Qt
 
 class ProjectorView(QMainWindow):
@@ -9,7 +9,6 @@ class ProjectorView(QMainWindow):
         self.resize(800, 600)
         self.setStyleSheet("background-color: black; color: white;")
 
-        # El texto ahora es 100% dinámico basado en el perfil escogido
         self.texto_en_vivo = QLabel(f"{nombre_congregacion}\nBienvenidos")
         self.texto_en_vivo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.texto_en_vivo.setWordWrap(True)
@@ -28,3 +27,8 @@ class ProjectorView(QMainWindow):
 
     def proyectar_texto(self, texto):
         self.texto_en_vivo.setText(texto)
+
+    def closeEvent(self, event):
+        """Si el usuario cierra la ventana del proyector, se apaga toda la aplicación"""
+        QApplication.instance().quit()
+        event.accept()
