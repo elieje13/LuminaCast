@@ -1,0 +1,19 @@
+# Entornos virtuales de Python
+venv/
+env/
+
+# Archivos compilados y caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Base de datos local (¡Muy importante no subir la BD de producción al repo!)
+data/*.db
+data/*.sqlite3
+
+# Archivos multimedia temporales
+assets/temp/
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
