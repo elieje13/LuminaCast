@@ -1,0 +1,27 @@
+Notas tecnicas por agregar---
+
+1. Agregar el tema de la barra superior agregar la opcion del version donde salga la version del programador.
+2. la opcion de editar las canciones editar eliminar y agregar.
+3. al darle cerrar perfil me regrege al panel de usuarios.
+4. barra superior agregar para ingresar al panel de letra donde podamos editar la letra color y demas cositas.
+5. Agregar al lado del ojito otro boton para agregar un reloj y al darle click derecho al reloj abra un panel para modificar el reloj editarlo colores y pocision tamaño y demas.
+6. La carpeta fondos al agregar una imagen en esa carpeta apareszca las imagenes en la galeria y asi quitar ese boton de agregar imagenes.
+7. agregar un flitro para las canciones y asi buscarlas.
+8. agregar las opciones de Canciones y otra opcion de biblias.
+9. agregar un panel de configuracion para la pantalla donde escoga uno cual es la pantalla es para proyectar.
+10. Agregar un boton tambien al lado del ojito que diga Logo la idea es escoger una imagen al darle click derecho escogerla como logo y al darle click al boton se coloque esa imagen y ademas no se vea la letra es como sobre poner todo.
+11. Agrega la opcion de import y export de canciones.
+12. Agregar la opcion de import y export de biblias.
+13. En el panel de configuracion de pantallas quiero me salga las pantallas que tenga el computador, se escoga una para audencia(live), Control Interface(Principal, Lo que ve el operador.) y la Stage Display(Lo que verían los músicos/oradores (un plus genial para el futuro).)
+14. Agrega como un boton donde se escoga un logo pero para que siempre salga en pantalla live esto que salga en la configuracion de pantallas. debe ser un logo que salga pequeño o grande de acuerdo a lo que uno escoga, adiconal que escoga en que lado apareszca derecha superior, izquierda Inferior, centro.
+15. Temas Globales (Templates) por perfil y que cambie la interfas, colores.
+
+
+*********************************
+Versiobn Pro-VIP
+A futuro agregar.
+1. Integración con OBS / Streaming (Protocolo NDI)
+La idea: En lugar de solo proyectar a pantallas físicas, LuminaCast podría enviar la señal vía NDI (Network Device Interface).
+
+¿Para qué? Para que tu logo o letra se superpongan (como Lower Thirds) directamente en la transmisión en vivo de tu iglesia sin usar cables de video extra.
+NDI (Network Device Interface) elimina el cable físico y lo reemplaza por tu red local (LAN).
