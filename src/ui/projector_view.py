@@ -9,12 +9,11 @@ class ProjectorView(QMainWindow):
         self.resize(800, 600)
         self.setStyleSheet("background-color: black; color: white;")
 
-        # Texto por defecto al abrir la aplicación
+        # Texto de bienvenida inicial
         self.texto_en_vivo = QLabel("IPUC LAS FLORES\nBienvenidos")
         self.texto_en_vivo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.texto_en_vivo.setWordWrap(True)
         
-        # Tipografía grande para el proyector
         fuente = self.texto_en_vivo.font()
         fuente.setPointSize(45)
         fuente.setBold(True)
@@ -28,5 +27,5 @@ class ProjectorView(QMainWindow):
         self.setCentralWidget(contenedor)
 
     def proyectar_texto(self, texto):
-        """Método público que el panel de control llamará para actualizar la pantalla"""
+        """Actualiza el contenido en la pantalla del público"""
         self.texto_en_vivo.setText(texto)

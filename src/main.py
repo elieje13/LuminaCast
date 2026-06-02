@@ -1,5 +1,14 @@
 # src/main.py
 import sys
+import os
+
+# --- ARQUITECTURA DE RUTAS ---
+# Obtenemos la ruta absoluta de la carpeta 'src' y la añadimos al sistema de búsqueda de Python
+RUTA_SRC = os.path.dirname(os.path.abspath(__file__))
+if RUTA_SRC not in sys.path:
+    sys.path.insert(0, RUTA_SRC)
+
+# Ahora sí podemos importar los módulos de forma limpia
 from PyQt6.QtWidgets import QApplication
 from ui.control_panel import ControlPanel
 from ui.projector_view import ProjectorView
