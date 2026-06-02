@@ -1,16 +1,15 @@
 # src/main.py
 import sys
 import os
-import time
 
 RUTA_SRC = os.path.dirname(os.path.abspath(__file__))
 if RUTA_SRC not in sys.path:
     sys.path.insert(0, RUTA_SRC)
 
-# Importamos nuevas herramientas de dibujo (QLinearGradient, QRect)
+# Importamos QTimer y removemos la librería 'time' estándar
 from PyQt6.QtWidgets import QApplication, QSplashScreen
 from PyQt6.QtGui import QPixmap, QColor, QPainter, QFont, QIcon, QLinearGradient
-from PyQt6.QtCore import Qt, QRect
+from PyQt6.QtCore import Qt, QRect, QTimer
 
 from ui.control_panel import ControlPanel
 from ui.projector_view import ProjectorView
@@ -26,37 +25,50 @@ def main():
         app.setWindowIcon(QIcon(ruta_icono))
     
     # 2. PANTALLA DE CARGA (SPLASH SCREEN PROFESIONAL)
-    # Tamaño más ancho y cinematográfico (600x300)
     pixmap = QPixmap(600, 300)
-    
     painter = QPainter(pixmap)
-    # Mejorar la calidad del dibujo (Antialiasing)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     
-    # Fondo con Degradado (De azul noche a casi negro)
     gradiente = QLinearGradient(0, 0, 600, 300)
-    gradiente.setColorAt(0.0, QColor("#0f172a")) # Noche oscuro
-    gradiente.setColorAt(1.0, QColor("#020617")) # Negro profundo
+    gradiente.setColorAt(0.0, QColor("#0f172a")) 
+    gradiente.setColorAt(1.0, QColor("#020617")) 
     painter.fillRect(pixmap.rect(), gradiente)
     
-    # Línea de acento en la parte inferior (Azul brillante)
     painter.fillRect(0, 295, 600, 5, QColor("#3b82f6"))
 
-    # Título Principal (LuminaCast)
     painter.setPen(QColor("#ffffff"))
     painter.setFont(QFont("Segoe UI", 48, QFont.Weight.Bold))
     painter.drawText(QRect(0, 60, 600, 80), Qt.AlignmentFlag.AlignCenter, "LuminaCast")
     
-    # Subtítulo (Organización)
-    painter.setPen(QColor("#94a3b8")) # Gris azulado suave
+    painter.setPen(QColor("#94a3b8")) 
     painter.setFont(QFont("Segoe UI", 16, QFont.Weight.Medium))
     painter.drawText(QRect(0, 150, 600, 30), Qt.AlignmentFlag.AlignCenter, "IPUC LAS FLORES")
 
-    # Texto de estado de carga
-    painter.setPen(QColor("#64748b")) # Gris más oscuro
+    painter.setPen(QColor("#64748b")) 
     painter.setFont(QFont("Segoe UI", 10))
     painter.drawText(QRect(0, 250, 600, 30), Qt.AlignmentFlag.AlignCenter, "Iniciando sistema y cargando base de datos...")
     
     painter.end()
     
     splash = QSplashScreen(pixmap, Qt.WindowType.WindowStaysOnTopHint)
+    splash.show()
+    
+    # 3. INICIO ASÍNCRONO DE LA APLICACIÓN
+    def iniciar_app():
+        # Atamos las variables a 'app' para evitar que Python las elimine de la memoria
+        app.proyector = ProjectorView()
+        gestionar_pantallas(app.proyector)
+        
+        app.panel_control = ControlPanel(app.proyector)
+        app.panel_control.show()
+        
+        # Ocultar la pantalla de carga al mostrar el panel
+        splash.finish(app.panel_control)
+
+    # El QTimer espera 1800 milisegundos (1.8 seg) y luego ejecuta la función iniciar_app sin congelar
+    QTimer.singleShot(1800, iniciar_app)
+    
+    sys.exit(app.exec())
+
+if __name__ == "__main__":
+    main()
