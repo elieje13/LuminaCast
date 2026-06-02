@@ -4,56 +4,67 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout,
 from PyQt6.QtCore import Qt
 
 class ControlPanel(QMainWindow):
-    def __init__(self):
+    def __init__(self, proyector):
         super().__init__()
+        self.proyector = proyector
         self.setWindowTitle("LuminaCast - Panel de Control")
-        self.resize(1024, 768) # Un tamaño más amplio para trabajar cómodamente
+        self.resize(1024, 768)
 
-        # 1. Contenedor y Layout Principal (Horizontal)
         widget_central = QWidget()
         layout_principal = QHBoxLayout()
 
-        # --- PANEL IZQUIERDO: Librería (Vertical) ---
+        # --- PANEL IZQUIERDO ---
         panel_izquierdo = QVBoxLayout()
-        
         titulo_libreria = QLabel("Librería de Recursos")
         titulo_libreria.setStyleSheet("font-weight: bold; font-size: 14px;")
         
-        # Lista simulada de canciones
         self.lista_recursos = QListWidget()
         self.lista_recursos.addItems([
             "01 - Cuan Grande es Él", 
             "02 - Océanos (Donde mis pies pueden fallar)", 
             "03 - Way Maker (Aquí estás)"
         ])
+        # Conectar el clic en la lista para actualizar la vista previa
+        self.lista_recursos.itemClicked.connect(self.previsualizar_item)
         
         panel_izquierdo.addWidget(titulo_libreria)
         panel_izquierdo.addWidget(self.lista_recursos)
 
-        # --- PANEL DERECHO: Vista Previa y Operación (Vertical) ---
+        # --- PANEL DERECHO ---
         panel_derecho = QVBoxLayout()
-        
         titulo_vista = QLabel("Vista Previa de Proyección")
         titulo_vista.setStyleSheet("font-weight: bold; font-size: 14px;")
         
-        # Pantalla negra simulando el proyector
-        self.monitor_previa = QLabel("Selecciona una canción...")
+        self.monitor_previa = QLabel("Selecciona una canción de la lista...")
         self.monitor_previa.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.monitor_previa.setStyleSheet("background-color: black; color: white; font-size: 24px; border: 2px solid #555;")
         
-        # Botón de disparo
         self.btn_proyectar = QPushButton("▶ ENVIAR A PANTALLA EN VIVO")
         self.btn_proyectar.setStyleSheet("background-color: #28a745; color: white; font-weight: bold; padding: 15px; font-size: 16px;")
+        # Conectar el botón verde para enviar al proyector
+        self.btn_proyectar.clicked.connect(self.enviar_en_vivo)
         
         panel_derecho.addWidget(titulo_vista)
-        panel_derecho.addWidget(self.monitor_previa, stretch=1) # stretch=1 hace que la pantalla ocupe el máximo espacio posible
+        panel_derecho.addWidget(self.monitor_previa, stretch=1)
         panel_derecho.addWidget(self.btn_proyectar)
 
-        # 2. Ensamblar los paneles en el layout principal
-        # Le damos más proporción (stretch=2) al panel derecho para que sea más grande
         layout_principal.addLayout(panel_izquierdo, stretch=1)
         layout_principal.addLayout(panel_derecho, stretch=2)
 
-        # 3. Aplicar al contenedor central
         widget_central.setLayout(layout_principal)
         self.setCentralWidget(widget_central)
+
+    # --- FUNCIONES DE LÓGICA ---
+    def previsualizar_item(self, item):
+        """Muestra el texto en el monitor central (sin enviarlo al público)"""
+        self.monitor_previa.setText(f"Letra de:\n{item.text()}")
+
+    def enviar_en_vivo(self):
+        """Toma lo que hay en la vista previa y lo dispara a la pantalla 2"""
+        texto_actual = self.monitor_previa.text()
+        self.proyector.proyectar_texto(texto_actual)
+
+    def closeEvent(self, event):
+        """Se activa automáticamente cuando el usuario da clic en la 'X' de esta ventana"""
+        self.proyector.close() # Fuerza el cierre de la ventana del proyector
+        event.accept()         # Acepta el cierre de la ventana principal
