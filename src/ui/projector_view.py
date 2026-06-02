@@ -3,14 +3,14 @@ from PyQt6.QtWidgets import QMainWindow, QLabel, QVBoxLayout, QWidget
 from PyQt6.QtCore import Qt
 
 class ProjectorView(QMainWindow):
-    def __init__(self):
+    def __init__(self, nombre_congregacion):
         super().__init__()
         self.setWindowTitle("LuminaCast - Salida en Vivo")
         self.resize(800, 600)
         self.setStyleSheet("background-color: black; color: white;")
 
-        # Texto de bienvenida inicial
-        self.texto_en_vivo = QLabel("IPUC LAS FLORES\nBienvenidos")
+        # El texto ahora es 100% dinámico basado en el perfil escogido
+        self.texto_en_vivo = QLabel(f"{nombre_congregacion}\nBienvenidos")
         self.texto_en_vivo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.texto_en_vivo.setWordWrap(True)
         
@@ -27,5 +27,4 @@ class ProjectorView(QMainWindow):
         self.setCentralWidget(contenedor)
 
     def proyectar_texto(self, texto):
-        """Actualiza el contenido en la pantalla del público"""
         self.texto_en_vivo.setText(texto)

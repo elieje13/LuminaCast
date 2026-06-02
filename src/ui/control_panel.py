@@ -1,38 +1,100 @@
 # src/ui/control_panel.py
-from PyQt6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, 
-                             QVBoxLayout, QListWidget, QListWidgetItem, QLabel, QPushButton)
+from PyQt6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, 
+                             QListWidget, QListWidgetItem, QLabel, QPushButton,
+                             QDialog, QLineEdit, QTextEdit, QMessageBox)
 from PyQt6.QtCore import Qt
-from database.db_manager import inicializar_db, obtener_todas_las_canciones, obtener_letra_cancion
+from database.db_manager import inicializar_db, obtener_todas_las_canciones, obtener_letra_cancion, agregar_cancion
 
+# =================================================================
+# VENTANA EMERGENTE PARA AGREGAR CANCIONES
+# =================================================================
+class DialogoAgregarCancion(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Agregar Nueva Canción")
+        self.resize(500, 600)
+        
+        layout = QVBoxLayout()
+        
+        layout.addWidget(QLabel("Título de la canción:"))
+        self.input_titulo = QLineEdit()
+        self.input_titulo.setPlaceholderText("Ej. Bueno es alabar...")
+        layout.addWidget(self.input_titulo)
+        
+        layout.addWidget(QLabel("Letra (Separa las estrofas con doble 'Enter'):"))
+        self.input_letra = QTextEdit()
+        self.input_letra.setPlaceholderText("[Estrofa 1]\nBueno es alabar al Señor\nTu nombre darte gloria...\n\n[Coro]\nPorque grande eres Tú...")
+        layout.addWidget(self.input_letra)
+        
+        btn_guardar = QPushButton("💾 Guardar Canción")
+        btn_guardar.setStyleSheet("background-color: #007bff; color: white; padding: 12px; font-weight: bold; border-radius: 4px;")
+        btn_guardar.clicked.connect(self.guardar_bd)
+        layout.addWidget(btn_guardar)
+        
+        self.setLayout(layout)
+        
+    def guardar_bd(self):
+        titulo = self.input_titulo.text().strip()
+        letra = self.input_letra.toPlainText().strip()
+        
+        if not titulo or not letra:
+            QMessageBox.warning(self, "Error", "El título y la letra son obligatorios.")
+            return
+            
+        agregar_cancion(titulo, letra)
+        self.accept()
+
+# =================================================================
+# PANEL DE CONTROL PRINCIPAL
+# =================================================================
 class ControlPanel(QMainWindow):
-    def __init__(self, proyector):
+    # ¡AQUÍ ESTÁ LA CORRECCIÓN! Ahora recibe nombre_congregacion correctamente
+    def __init__(self, proyector, nombre_congregacion):
         super().__init__()
         self.proyector = proyector
-        self.setWindowTitle("LuminaCast - Panel de Control")
+        self.setWindowTitle(f"LuminaCast - Panel de Control | Trabajando en: {nombre_congregacion}")
         self.resize(1200, 768)
 
-        # Inicializar la Base de Datos local
         inicializar_db()
 
         widget_central = QWidget()
         layout_principal = QHBoxLayout()
 
-        # =================================================================
-        # COLUMNA 1: LIBRERÍA DE CANCIONES (Izquierda)
-        # =================================================================
+        # --- COLUMNA 1: LIBRERÍA ---
         panel_izquierdo = QVBoxLayout()
         titulo_libreria = QLabel("📋 Canciones")
         titulo_libreria.setStyleSheet("font-weight: bold; font-size: 14px; color: #aaa;")
+        
+        self.btn_agregar = QPushButton("➕ Agregar Canción")
+        self.btn_agregar.setStyleSheet("background-color: #444; color: white; padding: 8px; font-weight: bold; border-radius: 4px; marginBottom: 5px;")
+        self.btn_agregar.clicked.connect(self.abrir_formulario_cancion)
+        
+        self.buscador = QLineEdit()
+        self.buscador.setPlaceholderText("🔍 Buscar canción por título...")
+        self.buscador.setStyleSheet("""
+            QLineEdit {
+                padding: 8px; 
+                font-size: 14px; 
+                background-color: #222; 
+                color: white; 
+                border: 1px solid #444; 
+                border-radius: 4px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #3b82f6;
+            }
+        """)
+        self.buscador.textChanged.connect(self.filtrar_canciones)
         
         self.lista_recursos = QListWidget()
         self.lista_recursos.itemClicked.connect(self.cargar_diapositivas_cancion)
         
         panel_izquierdo.addWidget(titulo_libreria)
+        panel_izquierdo.addWidget(self.btn_agregar)
+        panel_izquierdo.addWidget(self.buscador)
         panel_izquierdo.addWidget(self.lista_recursos)
 
-        # =================================================================
-        # COLUMNA 2: DIAPOSITIVAS / SECUENCIA (Centro)
-        # =================================================================
+        # --- COLUMNA 2: DIAPOSITIVAS ---
         panel_central = QVBoxLayout()
         titulo_diapositivas = QLabel("🔲 Diapositivas del Tema")
         titulo_diapositivas.setStyleSheet("font-weight: bold; font-size: 14px; color: #aaa;")
@@ -44,9 +106,7 @@ class ControlPanel(QMainWindow):
         panel_central.addWidget(titulo_diapositivas)
         panel_central.addWidget(self.lista_diapositivas)
 
-        # =================================================================
-        # COLUMNA 3: MONITOR DE VISTA PREVIA Y CONTROL (Derecha)
-        # =================================================================
+        # --- COLUMNA 3: VISTA PREVIA ---
         panel_derecho = QVBoxLayout()
         titulo_vista = QLabel("🖥️ Vista Previa")
         titulo_vista.setStyleSheet("font-weight: bold; font-size: 14px; color: #aaa;")
@@ -64,22 +124,23 @@ class ControlPanel(QMainWindow):
         panel_derecho.addWidget(self.monitor_previa, stretch=1)
         panel_derecho.addWidget(self.btn_proyectar)
 
-        # =================================================================
-        # ENSAMBLE DE LA ARQUITECTURA (Distribución de espacio)
-        # =================================================================
-        # PyQt6 requiere números enteros (int) para el stretch. 
-        # Multiplicamos por 2 para mantener la proporción sin usar decimales.
-        layout_principal.addLayout(panel_izquierdo, stretch=2)  # Proporción 2
-        layout_principal.addLayout(panel_central, stretch=2)    # Proporción 2
-        layout_principal.addLayout(panel_derecho, stretch=3)    # Proporción 3
+        # ENSAMBLE
+        layout_principal.addLayout(panel_izquierdo, stretch=2)
+        layout_principal.addLayout(panel_central, stretch=2)
+        layout_principal.addLayout(panel_derecho, stretch=3)
 
         widget_central.setLayout(layout_principal)
         self.setCentralWidget(widget_central)
 
-        # Cargar los datos desde SQLite
         self.cargar_canciones_desde_db()
 
-    # --- LÓGICA ---
+    # --- LÓGICA DEL CONTROLADOR ---
+    def abrir_formulario_cancion(self):
+        dialogo = DialogoAgregarCancion(self)
+        if dialogo.exec():
+            self.cargar_canciones_desde_db()
+            self.buscador.clear()
+
     def cargar_canciones_desde_db(self):
         self.lista_recursos.clear()
         canciones = obtener_todas_las_canciones()
@@ -87,6 +148,12 @@ class ControlPanel(QMainWindow):
             item = QListWidgetItem(titulo)
             item.setData(Qt.ItemDataRole.UserRole, song_id)
             self.lista_recursos.addItem(item)
+
+    def filtrar_canciones(self, texto_busqueda):
+        for i in range(self.lista_recursos.count()):
+            item = self.lista_recursos.item(i)
+            coincide = texto_busqueda.lower() in item.text().lower()
+            item.setHidden(not coincide)
 
     def cargar_diapositivas_cancion(self, item):
         self.lista_diapositivas.clear()
