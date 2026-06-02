@@ -1,4 +1,3 @@
-# src/main.py
 import sys
 import os
 
@@ -15,6 +14,7 @@ from ui.profile_selector import ProfileSelector
 from ui.control_panel import ControlPanel
 from ui.projector_view import ProjectorView
 from core.monitors import gestionar_pantallas
+from PyQt6.QtGui import QGuiApplication
 
 def arrancar_luminacast(app):
     """Función que ejecuta todo el flujo de una sesión. Devuelve el código de salida."""
@@ -74,8 +74,18 @@ def arrancar_luminacast(app):
         gestionar_pantallas(app.proyector)
         
         app.panel_control = ControlPanel(app.proyector, congregacion_activa)
-        app.panel_control.show()
         
+        # Posicionar el Panel de Control según configuración de base de datos
+        idx_control = obtener_configuracion("pantalla_control")
+        if idx_control and idx_control.isdigit():
+            idx_c = int(idx_control)
+            pantallas = QGuiApplication.screens()
+            if idx_c < len(pantallas):
+                geo = pantallas[idx_c].geometry()
+                # Lo movemos con un pequeño margen para que no quede pegado al borde absoluto
+                app.panel_control.move(geo.left() + 50, geo.top() + 50)
+                
+        app.panel_control.show()
         splash.finish(app.panel_control)
 
     QTimer.singleShot(1500, iniciar_app)
