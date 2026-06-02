@@ -9,34 +9,16 @@ def inicializar_db():
     conexion = sqlite3.connect(DB_PATH)
     cursor = conexion.cursor()
     
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS canciones (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            titulo TEXT NOT NULL,
-            letra TEXT NOT NULL
-        )
-    ''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS canciones (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT NOT NULL, letra TEXT NOT NULL)''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS perfiles (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre_perfil TEXT NOT NULL, nombre_congregacion TEXT NOT NULL, icono TEXT NOT NULL)''')
     
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS perfiles (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre_perfil TEXT NOT NULL,
-            nombre_congregacion TEXT NOT NULL,
-            icono TEXT NOT NULL
-        )
-    ''')
+    # NUEVA TABLA: Para guardar configuraciones internas como el "Último perfil usado"
+    cursor.execute('''CREATE TABLE IF NOT EXISTS configuracion (clave TEXT PRIMARY KEY, valor TEXT)''')
     conexion.commit()
     
     cursor.execute("SELECT COUNT(*) FROM canciones")
     if cursor.fetchone()[0] == 0:
         insertar_datos_prueba(conexion)
-        
-    cursor.execute("SELECT COUNT(*) FROM perfiles")
-    if cursor.fetchone()[0] == 0:
-        # CAMBIO: Usamos Iglesia A por defecto por temas de copyright/privacidad
-        cursor.execute("INSERT INTO perfiles (nombre_perfil, nombre_congregacion, icono) VALUES (?, ?, ?)", 
-                       ("Principal", "Iglesia A", "⛪"))
-        conexion.commit()
         
     conexion.close()
 
@@ -48,6 +30,22 @@ def insertar_datos_prueba(conexion):
     ]
     cursor.executemany("INSERT INTO canciones (titulo, letra) VALUES (?, ?)", canciones)
     conexion.commit()
+
+# --- FUNCIONES DE CONFIGURACIÓN DEL SISTEMA ---
+def obtener_configuracion(clave):
+    conexion = sqlite3.connect(DB_PATH)
+    cursor = conexion.cursor()
+    cursor.execute("SELECT valor FROM configuracion WHERE clave = ?", (clave,))
+    resultado = cursor.fetchone()
+    conexion.close()
+    return resultado[0] if resultado else ""
+
+def guardar_configuracion(clave, valor):
+    conexion = sqlite3.connect(DB_PATH)
+    cursor = conexion.cursor()
+    cursor.execute("INSERT OR REPLACE INTO configuracion (clave, valor) VALUES (?, ?)", (clave, str(valor)))
+    conexion.commit()
+    conexion.close()
 
 # --- FUNCIONES DE CANCIONES ---
 def obtener_todas_las_canciones():

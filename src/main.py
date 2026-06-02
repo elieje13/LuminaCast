@@ -10,32 +10,38 @@ from PyQt6.QtWidgets import QApplication, QSplashScreen, QDialog
 from PyQt6.QtGui import QPixmap, QColor, QPainter, QFont, QIcon, QLinearGradient
 from PyQt6.QtCore import Qt, QRect, QTimer
 
-from database.db_manager import inicializar_db
+from database.db_manager import inicializar_db, obtener_configuracion, obtener_perfiles
 from ui.profile_selector import ProfileSelector
 from ui.control_panel import ControlPanel
 from ui.projector_view import ProjectorView
 from core.monitors import gestionar_pantallas
 
-def main():
-    app = QApplication(sys.argv)
-    app.setApplicationName("LuminaCast")
-    
-    ruta_icono = os.path.join(os.path.dirname(RUTA_SRC), "assets", "icono.ico")
-    if os.path.exists(ruta_icono):
-        app.setWindowIcon(QIcon(ruta_icono))
-        
-    # 1. INICIALIZAR BASE DE DATOS PRIMERO
+def arrancar_luminacast(app):
+    """Función que ejecuta todo el flujo de una sesión. Devuelve el código de salida."""
     inicializar_db()
     
-    # 2. MOSTRAR SELECTOR DE PERFILES
-    selector = ProfileSelector()
-    if selector.exec() != QDialog.DialogCode.Accepted:
-        sys.exit(0) # Si el usuario cierra la ventana con la X, el programa termina
-        
-    # Extraemos el nombre de la congregación seleccionada
-    congregacion_activa = selector.congregacion_seleccionada
+    # 1. VERIFICAR AUTOLOGIN (¿Hay un perfil guardado?)
+    ultimo_id = obtener_configuracion("ultimo_perfil")
+    perfiles = obtener_perfiles()
+    
+    perfil_valido = None
+    if ultimo_id:
+        for p in perfiles:
+            if str(p[0]) == str(ultimo_id):
+                perfil_valido = p
+                break
+                
+    if not perfil_valido:
+        # No hay auto-login, abrimos el selector
+        selector = ProfileSelector()
+        if selector.exec() != QDialog.DialogCode.Accepted:
+            return 0 # Si cancela en el selector, apagamos
+        congregacion_activa = selector.congregacion_seleccionada
+    else:
+        # Autologin detectado, sacamos el nombre (posición 2 en la tupla de la DB)
+        congregacion_activa = perfil_valido[2]
 
-    # 3. PANTALLA DE CARGA (SPLASH SCREEN DINÁMICO)
+    # 2. PANTALLA DE CARGA
     pixmap = QPixmap(600, 300)
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -50,7 +56,6 @@ def main():
     painter.setFont(QFont("Segoe UI", 48, QFont.Weight.Bold))
     painter.drawText(QRect(0, 60, 600, 80), Qt.AlignmentFlag.AlignCenter, "LuminaCast")
     
-    # Pintamos el nombre real de la congregación escogida
     painter.setPen(QColor("#94a3b8")) 
     painter.setFont(QFont("Segoe UI", 16, QFont.Weight.Medium))
     painter.drawText(QRect(0, 150, 600, 30), Qt.AlignmentFlag.AlignCenter, congregacion_activa)
@@ -58,26 +63,41 @@ def main():
     painter.setPen(QColor("#64748b")) 
     painter.setFont(QFont("Segoe UI", 10))
     painter.drawText(QRect(0, 250, 600, 30), Qt.AlignmentFlag.AlignCenter, f"Cargando entorno para {congregacion_activa}...")
-    
     painter.end()
     
     splash = QSplashScreen(pixmap, Qt.WindowType.WindowStaysOnTopHint)
     splash.show()
     
-    # 4. INICIO ASÍNCRONO DE LA APLICACIÓN
+    # 3. LANZAR VENTANAS PRINCIPALES
     def iniciar_app():
-        # Pasamos el nombre a la vista del proyector
         app.proyector = ProjectorView(congregacion_activa)
         gestionar_pantallas(app.proyector)
         
-        # Pasamos el nombre al panel de control
         app.panel_control = ControlPanel(app.proyector, congregacion_activa)
         app.panel_control.show()
         
         splash.finish(app.panel_control)
 
-    QTimer.singleShot(1800, iniciar_app)
-    sys.exit(app.exec())
+    QTimer.singleShot(1500, iniciar_app)
+    
+    # Pausamos el script aquí hasta que alguna ventana envíe QApplication.exit(codigo)
+    return app.exec()
+
+def main():
+    # Instanciamos la App UNA SOLA VEZ para que no se crashee en los reinicios
+    app = QApplication.instance() or QApplication(sys.argv)
+    app.setApplicationName("LuminaCast")
+    
+    ruta_icono = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../assets/icono.ico")
+    if os.path.exists(ruta_icono):
+        app.setWindowIcon(QIcon(ruta_icono))
+        
+    # BUCLE MÁGICO: Si el código es 42 (Cerrar Perfil), repite. Si es 0 (Cerrar App), se rompe y termina.
+    codigo_salida = 42
+    while codigo_salida == 42:
+        codigo_salida = arrancar_luminacast(app)
+        
+    sys.exit(codigo_salida)
 
 if __name__ == "__main__":
     main()

@@ -2,10 +2,10 @@
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QListWidget, 
                              QPushButton, QLabel, QLineEdit, QComboBox, QMessageBox, QListWidgetItem)
 from PyQt6.QtCore import Qt
-from database.db_manager import obtener_perfiles, agregar_perfil, eliminar_perfil, actualizar_perfil
+from database.db_manager import (obtener_perfiles, agregar_perfil, eliminar_perfil, 
+                                 actualizar_perfil, guardar_configuracion)
 
 class DialogoPerfil(QDialog):
-    """Diálogo reutilizable para CREAR y EDITAR perfiles"""
     def __init__(self, parent=None, perfil_id=None, nombre="", congregacion="", icono="⛪"):
         super().__init__(parent)
         self.perfil_id = perfil_id
@@ -13,7 +13,6 @@ class DialogoPerfil(QDialog):
         self.resize(400, 250)
         
         layout = QVBoxLayout()
-        
         layout.addWidget(QLabel("Nombre del Perfil (Ej. Culto Jóvenes):"))
         self.input_nombre = QLineEdit(nombre)
         layout.addWidget(self.input_nombre)
@@ -36,19 +35,16 @@ class DialogoPerfil(QDialog):
         btn_guardar.setStyleSheet("background-color: #28a745; color: white; padding: 10px; font-weight: bold;")
         btn_guardar.clicked.connect(self.guardar)
         layout.addWidget(btn_guardar)
-        
         self.setLayout(layout)
         
     def guardar(self):
         if not self.input_nombre.text().strip() or not self.input_congregacion.text().strip():
             QMessageBox.warning(self, "Error", "Todos los campos son obligatorios.")
             return
-        
         if self.perfil_id:
             actualizar_perfil(self.perfil_id, self.input_nombre.text(), self.input_congregacion.text(), self.combo_icono.currentText())
         else:
             agregar_perfil(self.input_nombre.text(), self.input_congregacion.text(), self.combo_icono.currentText())
-            
         self.accept()
 
 class ProfileSelector(QDialog):
@@ -60,7 +56,6 @@ class ProfileSelector(QDialog):
         self.perfil_seleccionado = ""
         
         layout_principal = QVBoxLayout()
-        
         titulo = QLabel("Selecciona un Perfil de Trabajo")
         titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         titulo.setStyleSheet("font-size: 18px; font-weight: bold; margin-bottom: 10px;")
@@ -71,15 +66,11 @@ class ProfileSelector(QDialog):
         self.lista_perfiles.itemDoubleClicked.connect(self.ingresar)
         layout_principal.addWidget(self.lista_perfiles)
         
-        # Botones de acción
         layout_botones = QHBoxLayout()
-        
         btn_nuevo = QPushButton("➕ Nuevo")
         btn_nuevo.clicked.connect(self.crear_perfil)
-        
         btn_editar = QPushButton("✏️ Editar")
         btn_editar.clicked.connect(self.editar_perfil_seleccionado)
-        
         btn_eliminar = QPushButton("🗑️ Eliminar")
         btn_eliminar.clicked.connect(self.eliminar_perfil_seleccionado)
         
@@ -93,19 +84,25 @@ class ProfileSelector(QDialog):
         
         layout_principal.addLayout(layout_botones)
         layout_principal.addWidget(self.btn_ingresar)
-        
         self.setLayout(layout_principal)
+        
         self.cargar_perfiles()
+        
+        # DETECCIÓN DE PRIMERA VEZ (No hay perfiles en la base de datos)
+        if self.lista_perfiles.count() == 0:
+            QMessageBox.information(self, "Bienvenido a LuminaCast", "Parece que es la primera vez que abres el programa. ¡Vamos a crear tu primer perfil!")
+            self.crear_perfil()
+            # Si después de intentar crear, sigue vacío (el usuario le dio a la X), salimos
+            if self.lista_perfiles.count() == 0:
+                self.reject()
 
     def cargar_perfiles(self):
         self.lista_perfiles.clear()
         perfiles = obtener_perfiles()
         for p_id, nombre, congregacion, icono in perfiles:
-            texto_mostrar = f"{icono}  {nombre} ({congregacion})"
-            item = QListWidgetItem(texto_mostrar)
+            item = QListWidgetItem(f"{icono}  {nombre} ({congregacion})")
             item.setData(Qt.ItemDataRole.UserRole, {"id": p_id, "congregacion": congregacion, "nombre": nombre, "icono": icono})
             self.lista_perfiles.addItem(item)
-            
         if self.lista_perfiles.count() > 0:
             self.lista_perfiles.setCurrentRow(0)
 
@@ -118,7 +115,6 @@ class ProfileSelector(QDialog):
         item = self.lista_perfiles.currentItem()
         if not item: return
         datos = item.data(Qt.ItemDataRole.UserRole)
-        
         dialogo = DialogoPerfil(self, perfil_id=datos["id"], nombre=datos["nombre"], congregacion=datos["congregacion"], icono=datos["icono"])
         if dialogo.exec():
             self.cargar_perfiles()
@@ -127,9 +123,7 @@ class ProfileSelector(QDialog):
         item = self.lista_perfiles.currentItem()
         if not item: return
         datos = item.data(Qt.ItemDataRole.UserRole)
-        
-        respuesta = QMessageBox.question(self, "Eliminar", f"¿Seguro que deseas eliminar el perfil '{datos['nombre']}'?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        if respuesta == QMessageBox.StandardButton.Yes:
+        if QMessageBox.question(self, "Eliminar", f"¿Eliminar el perfil '{datos['nombre']}'?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
             eliminar_perfil(datos["id"])
             self.cargar_perfiles()
 
@@ -139,4 +133,8 @@ class ProfileSelector(QDialog):
         datos = item.data(Qt.ItemDataRole.UserRole)
         self.congregacion_seleccionada = datos["congregacion"]
         self.perfil_seleccionado = datos["nombre"]
+        
+        # GUARDAR CONFIGURACIÓN: El programa recordará este ID para arrancar directo la próxima vez
+        guardar_configuracion("ultimo_perfil", datos["id"])
+        
         self.accept()
