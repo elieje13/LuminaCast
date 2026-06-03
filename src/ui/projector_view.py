@@ -11,7 +11,6 @@ class ProjectorView(QMainWindow):
         self.central_widget = QWidget(self)
         self.setCentralWidget(self.central_widget)
 
-        # Variables de estilo por defecto
         self.fuente_actual = "Segoe UI"
         self.tamano_letra_actual = 45
         self.color_letra_actual = "#ffffff"
@@ -19,19 +18,16 @@ class ProjectorView(QMainWindow):
         self.reloj_tamano = 20
         self.reloj_posicion = "Arriba - Derecha"
 
-        # Capa 1: Fondo
         self.label_fondo = QLabel(self.central_widget)
         self.label_fondo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.ruta_fondo_actual = None
         
-        # Capa 2: Texto Principal
         self.texto_en_vivo = QLabel(f"{nombre_congregacion}\nBienvenidos", self.central_widget)
         self.texto_en_vivo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.texto_en_vivo.setWordWrap(True)
         self.actualizar_estilo_texto(self.fuente_actual, self.tamano_letra_actual, self.color_letra_actual)
         self.aplicar_sombra(self.texto_en_vivo)
 
-        # Capa 3: Reloj (Flotante)
         self.label_reloj = QLabel("", self.central_widget)
         self.label_reloj.setStyleSheet("color: white; background-color: rgba(0,0,0,150); padding: 5px; border-radius: 5px;")
         self.label_reloj.setFont(QFont("Segoe UI", self.reloj_tamano, QFont.Weight.Bold))
@@ -41,7 +37,6 @@ class ProjectorView(QMainWindow):
         self.timer_reloj.timeout.connect(self.actualizar_reloj)
         self.timer_reloj.start(1000)
 
-        # Capa 4: Logo (Flotante)
         self.label_logo = QLabel(self.central_widget)
         self.label_logo.setStyleSheet("background-color: transparent;")
         self.label_logo.hide()
@@ -57,7 +52,6 @@ class ProjectorView(QMainWindow):
         self.fuente_actual = fuente
         self.tamano_letra_actual = tamano
         self.color_letra_actual = color_hex
-        
         self.texto_en_vivo.setFont(QFont(fuente, tamano, QFont.Weight.Bold))
         self.texto_en_vivo.setStyleSheet(f"color: {color_hex}; background-color: transparent;")
 
@@ -70,11 +64,9 @@ class ProjectorView(QMainWindow):
     def actualizar_reloj(self):
         self.label_reloj.setText(QTime.currentTime().toString("hh:mm:ss AP"))
         self.label_reloj.adjustSize()
-        
         margen = 20
         y = margen if "Arriba" in self.reloj_posicion else self.height() - self.label_reloj.height() - margen
         x = margen if "Izquierda" in self.reloj_posicion else self.width() - self.label_reloj.width() - margen
-        
         self.label_reloj.move(x, y)
 
     def toggle_reloj(self, estado):
@@ -106,6 +98,12 @@ class ProjectorView(QMainWindow):
             pixmap = QPixmap(ruta_imagen).scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
             self.label_fondo.setPixmap(pixmap)
 
-    def proyectar_texto(self, texto): self.texto_en_vivo.setText(texto)
-    def ocultar_proyeccion(self, ocultar): self.texto_en_vivo.setVisible(not ocultar)
-    def closeEvent(self, event): QApplication.instance().quit(); event.accept()
+    def proyectar_texto(self, texto): 
+        self.texto_en_vivo.setText(texto)
+        
+    def ocultar_proyeccion(self, ocultar): 
+        self.texto_en_vivo.setVisible(not ocultar)
+        
+    def closeEvent(self, event): 
+        # CORRECCIÓN: Solo aceptamos el cierre de la ventana, no matamos toda la app.
+        event.accept()

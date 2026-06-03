@@ -3,12 +3,14 @@ import os
 import shutil
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, 
                              QListWidget, QListWidgetItem, QLabel, QPushButton,
-                             QDialog, QLineEdit, QTextEdit, QMessageBox, QApplication, QMenu, QTabWidget, QFileDialog, QFontComboBox, QSpinBox, QColorDialog, QComboBox)
+                             QDialog, QLineEdit, QTextEdit, QMessageBox, QApplication, 
+                             QMenu, QTabWidget, QFileDialog, QFontComboBox, QSpinBox, 
+                             QColorDialog, QComboBox)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QIcon, QAction, QColor
 from database.db_manager import (inicializar_db, obtener_todas_las_canciones, 
                                  obtener_letra_cancion, agregar_cancion, 
-                                 actualizar_cancion, eliminar_cancion, guardar_configuracion)
+                                 actualizar_cancion, eliminar_cancion, guardar_configuracion, obtener_configuracion)
 from ui.screen_settings import ScreenSettingsDialog
 
 class DialogoCancion(QDialog):
@@ -116,16 +118,46 @@ class ControlPanel(QMainWindow):
     def __init__(self, proyector, nombre_congregacion):
         super().__init__()
         self.proyector = proyector
+        self.nombre_congregacion = nombre_congregacion
         self.setWindowTitle(f"LuminaCast | {nombre_congregacion}")
         self.resize(1200, 800)
         self.aplicar_tema_oscuro()
         
         self.esta_visible = True
-        self.reloj_activo = False
-        self.logo_activo = False
-        self.ruta_logo_global = None
-
+        self.cambiando_perfil = False
         inicializar_db()
+
+        # --- CARGAR CONFIGURACIÓN ESPECÍFICA DE ESTE PERFIL ---
+        reloj_act = obtener_configuracion(f"{nombre_congregacion}_reloj_activo")
+        self.reloj_activo = True if reloj_act == "1" else False
+        
+        reloj_tam = obtener_configuracion(f"{nombre_congregacion}_reloj_tamano")
+        reloj_tamano = int(reloj_tam) if (reloj_tam and reloj_tam.isdigit()) else 20
+        
+        reloj_pos = obtener_configuracion(f"{nombre_congregacion}_reloj_posicion")
+        reloj_posicion = reloj_pos if reloj_pos else "Arriba - Derecha"
+        
+        logo_act = obtener_configuracion(f"{nombre_congregacion}_logo_activo")
+        self.logo_activo = True if logo_act == "1" else False
+        
+        self.ruta_logo_global = obtener_configuracion(f"{nombre_congregacion}_logo_ruta")
+        
+        letra_f = obtener_configuracion(f"{nombre_congregacion}_letra_fuente")
+        letra_fuente = letra_f if letra_f else "Segoe UI"
+        
+        letra_t = obtener_configuracion(f"{nombre_congregacion}_letra_tamano")
+        letra_tamano = int(letra_t) if (letra_t and letra_t.isdigit()) else 45
+        
+        letra_c = obtener_configuracion(f"{nombre_congregacion}_letra_color")
+        letra_color = letra_c if letra_c else "#ffffff"
+
+        # Aplicar preferencias guardadas al proyector de inmediato
+        self.proyector.actualizar_estilo_texto(letra_fuente, letra_tamano, letra_color)
+        self.proyector.configurar_reloj(reloj_tamano, reloj_posicion)
+        self.proyector.toggle_reloj(self.reloj_activo)
+        if self.ruta_logo_global and os.path.exists(self.ruta_logo_global):
+            self.proyector.toggle_logo(self.logo_activo, self.ruta_logo_global)
+
         self.crear_menu_superior() 
 
         widget_central = QWidget()
@@ -138,6 +170,7 @@ class ControlPanel(QMainWindow):
         tab_canciones = QWidget()
         layout_canciones = QVBoxLayout(tab_canciones)
         layout_canciones.setContentsMargins(5, 10, 5, 5)
+        
         self.input_filtro = QLineEdit()
         self.input_filtro.setPlaceholderText("🔍 Buscar canción...")
         self.input_filtro.textChanged.connect(self.filtrar_canciones)
@@ -185,6 +218,10 @@ class ControlPanel(QMainWindow):
         self.btn_logo.setToolTip("Mostrar/Ocultar Logo")
         self.btn_logo.clicked.connect(self.toggle_logo)
 
+        # Sincronizar colores visuales de los botones según el estado cargado
+        self.btn_reloj.setStyleSheet("background-color: #007acc;" if self.reloj_activo else "background-color: #3d3d3d;")
+        self.btn_logo.setStyleSheet("background-color: #007acc;" if self.logo_activo else "background-color: #3d3d3d;")
+
         barra_herramientas.addWidget(self.btn_ojo)
         barra_herramientas.addWidget(self.btn_reloj)
         barra_herramientas.addWidget(self.btn_logo)
@@ -215,11 +252,7 @@ class ControlPanel(QMainWindow):
         self.lista_fondos.setFixedHeight(120)
         self.lista_fondos.itemClicked.connect(self.aplicar_fondo)
         
-        # Click derecho en galería para escoger Logo
-        self.lista_fondos.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.lista_fondos.customContextMenuRequested.connect(self.menu_galeria_click_derecho)
-        
-        panel_fondos.addWidget(QLabel("🖼️ Galería (Agregar imágenes en la carpeta fondos. Click derecho en imagen para usar como Logo)"))
+        panel_fondos.addWidget(QLabel("🖼️ Galería (Agregar imágenes en la carpeta fondos)"))
         panel_fondos.addWidget(self.lista_fondos)
 
         layout_base.addLayout(layout_columnas, 1)
@@ -269,29 +302,48 @@ class ControlPanel(QMainWindow):
         menu_config = menu_bar.addMenu("Configuración")
         menu_config.addAction("🖥️ Administrar Pantallas").triggered.connect(lambda: ScreenSettingsDialog(self).exec())
         menu_config.addAction("🎨 Editar Letra y Color").triggered.connect(self.abrir_editor_letras)
+        menu_config.addAction("🖼️ Seleccionar Logo Global").triggered.connect(self.seleccionar_logo_archivo)
         
         menu_ayuda = menu_bar.addMenu("Ayuda")
         menu_ayuda.addAction("ℹ️ Acerca de LuminaCast").triggered.connect(self.mostrar_acerca_de)
 
     def cerrar_perfil(self):
-        # Borramos el auto-login para obligarlo a mostrar el selector de perfiles
+        self.cambiando_perfil = True
         guardar_configuracion("ultimo_perfil", "")
-        QApplication.exit(42)
+        if self.proyector:
+            self.proyector.close()
+        self.close()
 
     def mostrar_acerca_de(self):
         texto = (
             "<h3>LuminaCast v1.0</h3>"
             "<p>Software de proyección profesional.</p>"
             "<p><b>Desarrollado por:</b> Eliecer Conrado<br>"
-            "<b>Correo:</b> tu_correo_aqui@gmail.com</p>"
+            "<b>Correo:</b> eliecer.conrado@gmail.com</p>"
             "<p><b>Estado:</b> Licencia Activa.</p>"
         )
         QMessageBox.about(self, "Acerca de LuminaCast", texto)
 
+    def seleccionar_logo_archivo(self):
+        archivo, _ = QFileDialog.getOpenFileName(self, "Seleccionar Logo", "", "Imágenes (*.png *.jpg *.jpeg)")
+        if archivo:
+            self.ruta_logo_global = archivo
+            guardar_configuracion(f"{self.nombre_congregacion}_logo_ruta", archivo)
+            QMessageBox.information(self, "Logo Actualizado", "Imagen cargada. Activa el botón de logo en el panel para mostrarla.")
+
     def abrir_editor_letras(self):
         dialogo = TextSettingsDialog(self, self.proyector.fuente_actual, self.proyector.tamano_letra_actual, self.proyector.color_letra_actual)
         if dialogo.exec():
-            self.proyector.actualizar_estilo_texto(dialogo.combo_fuente.currentText(), dialogo.spin_tamano.value(), dialogo.color_seleccionado)
+            fuente = dialogo.combo_fuente.currentText()
+            tamano = dialogo.spin_tamano.value()
+            color = dialogo.color_seleccionado
+            
+            self.proyector.actualizar_estilo_texto(fuente, tamano, color)
+            
+            # Guardar preferencias específicas de este perfil
+            guardar_configuracion(f"{self.nombre_congregacion}_letra_fuente", fuente)
+            guardar_configuracion(f"{self.nombre_congregacion}_letra_tamano", str(tamano))
+            guardar_configuracion(f"{self.nombre_congregacion}_letra_color", color)
 
     def menu_editar_reloj(self, pos):
         menu = QMenu()
@@ -302,19 +354,14 @@ class ControlPanel(QMainWindow):
     def abrir_configuracion_reloj(self):
         dialogo = ClockSettingsDialog(self, self.proyector.reloj_tamano, self.proyector.reloj_posicion)
         if dialogo.exec():
-            self.proyector.configurar_reloj(dialogo.spin_tamano.value(), dialogo.combo_pos.currentText())
-
-    def menu_galeria_click_derecho(self, pos):
-        item = self.lista_fondos.itemAt(pos)
-        if item and item.data(Qt.ItemDataRole.UserRole) != "sin_fondo":
-            menu = QMenu()
-            menu.setStyleSheet("QMenu { background-color: #2d2d2d; color: white; } QMenu::item:selected { background-color: #007acc; }")
-            menu.addAction("👑 Establecer como Logo Global").triggered.connect(lambda: self.establecer_logo(item))
-            menu.exec(self.lista_fondos.viewport().mapToGlobal(pos))
-
-    def establecer_logo(self, item):
-        self.ruta_logo_global = item.data(Qt.ItemDataRole.UserRole)
-        QMessageBox.information(self, "Logo Seleccionado", "Has establecido esta imagen como tu Logo Global. Enciende el botón de logo para verlo.")
+            tamano = dialogo.spin_tamano.value()
+            posicion = dialogo.combo_pos.currentText()
+            
+            self.proyector.configurar_reloj(tamano, posicion)
+            
+            # Guardar preferencias específicas de este perfil
+            guardar_configuracion(f"{self.nombre_congregacion}_reloj_tamano", str(tamano))
+            guardar_configuracion(f"{self.nombre_congregacion}_reloj_posicion", posicion)
 
     def mostrar_menu_canciones(self, posicion):
         menu = QMenu()
@@ -327,7 +374,8 @@ class ControlPanel(QMainWindow):
         menu.exec(self.lista_recursos.viewport().mapToGlobal(posicion))
 
     def agregar_nueva_cancion(self):
-        if DialogoCancion(self).exec(): self.cargar_canciones_desde_db()
+        if DialogoCancion(self).exec(): 
+            self.cargar_canciones_desde_db()
 
     def editar_cancion(self, item):
         song_id = item.data(Qt.ItemDataRole.UserRole)
@@ -349,14 +397,18 @@ class ControlPanel(QMainWindow):
         self.reloj_activo = not self.reloj_activo
         self.btn_reloj.setStyleSheet("background-color: #007acc;" if self.reloj_activo else "background-color: #3d3d3d;")
         self.proyector.toggle_reloj(self.reloj_activo)
+        # Persistir el estado del botón por perfil
+        guardar_configuracion(f"{self.nombre_congregacion}_reloj_activo", "1" if self.reloj_activo else "0")
 
     def toggle_logo(self):
         if not self.ruta_logo_global:
-            QMessageBox.warning(self, "Sin Logo", "Haz click derecho en una imagen de la galería para establecerla como logo primero.")
+            self.seleccionar_logo_archivo()
             return
         self.logo_activo = not self.logo_activo
         self.btn_logo.setStyleSheet("background-color: #007acc;" if self.logo_activo else "background-color: #3d3d3d;")
         self.proyector.toggle_logo(self.logo_activo, self.ruta_logo_global)
+        # Persistir el estado del botón por perfil
+        guardar_configuracion(f"{self.nombre_congregacion}_logo_activo", "1" if self.logo_activo else "0")
 
     def filtrar_canciones(self, texto):
         for i in range(self.lista_recursos.count()):
@@ -366,7 +418,6 @@ class ControlPanel(QMainWindow):
     def cargar_galeria_fondos(self):
         self.lista_fondos.clear()
         
-        # 1. Crear el ítem y asignarle los datos por separado (CORRECCIÓN IMPORTANTE)
         item_sin = QListWidgetItem("Sin Fondo")
         item_sin.setData(Qt.ItemDataRole.UserRole, "sin_fondo")
         self.lista_fondos.addItem(item_sin)
@@ -386,7 +437,6 @@ class ControlPanel(QMainWindow):
     def cargar_canciones_desde_db(self):
         self.lista_recursos.clear()
         for song_id, titulo in obtener_todas_las_canciones():
-            # 2. Crear el ítem y asignarle los datos por separado (CORRECCIÓN IMPORTANTE)
             item = QListWidgetItem(titulo)
             item.setData(Qt.ItemDataRole.UserRole, song_id)
             self.lista_recursos.addItem(item)
@@ -396,7 +446,8 @@ class ControlPanel(QMainWindow):
         letra = obtener_letra_cancion(item.data(Qt.ItemDataRole.UserRole))
         if letra:
             for bloque in letra.split("\n\n"):
-                if bloque.strip(): self.lista_diapositivas.addItem(QListWidgetItem(bloque.strip()))
+                if bloque.strip(): 
+                    self.lista_diapositivas.addItem(QListWidgetItem(bloque.strip()))
 
     def previsualizar_diapositiva(self, item): 
         self.monitor_previa.setText(item.text())
@@ -406,7 +457,12 @@ class ControlPanel(QMainWindow):
             self.proyector.proyectar_texto(re.sub(r'\[.*?\]', '', self.monitor_previa.text()).strip())
 
     def disparar_diapositiva_directo(self, item): 
-        self.previsualizar_diapositiva(item); self.enviar_en_vivo()
+        self.previsualizar_diapositiva(item)
+        self.enviar_en_vivo()
 
     def closeEvent(self, event): 
-        QApplication.exit(0)
+        if self.cambiando_perfil:
+            QApplication.instance().exit(42)
+        else:
+            QApplication.instance().exit(0)
+        event.accept()
