@@ -5,12 +5,15 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
                              QListWidget, QListWidgetItem, QLabel, QPushButton,
                              QDialog, QLineEdit, QTextEdit, QMessageBox, QApplication, 
                              QMenu, QTabWidget, QFileDialog, QFontComboBox, QSpinBox, 
-                             QColorDialog, QComboBox)
+                             QColorDialog, QComboBox, QGroupBox, QFormLayout)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QIcon, QAction, QColor
 from database.db_manager import (inicializar_db, obtener_todas_las_canciones, 
                                  obtener_letra_cancion, agregar_cancion, 
-                                 actualizar_cancion, eliminar_cancion, guardar_configuracion, obtener_configuracion)
+                                 actualizar_cancion, eliminar_cancion, guardar_configuracion, 
+                                 obtener_configuracion, obtener_versiones_biblia, 
+                                 obtener_libros_biblia, obtener_capitulos_biblia, 
+                                 obtener_versiculos_biblia)
 from ui.screen_settings import ScreenSettingsDialog
 
 class DialogoCancion(QDialog):
@@ -53,27 +56,23 @@ class TextSettingsDialog(QDialog):
         self.resize(300, 250)
         self.setStyleSheet("background-color: #1e1e1e; color: white;")
         layout = QVBoxLayout()
-
         layout.addWidget(QLabel("Fuente:"))
         self.combo_fuente = QFontComboBox()
         self.combo_fuente.setCurrentText(font_actual)
         self.combo_fuente.setStyleSheet("background-color: #2d2d2d; color: white;")
         layout.addWidget(self.combo_fuente)
-
         layout.addWidget(QLabel("Tamaño:"))
         self.spin_tamano = QSpinBox()
         self.spin_tamano.setRange(20, 150)
         self.spin_tamano.setValue(tamano_actual)
         self.spin_tamano.setStyleSheet("background-color: #2d2d2d; color: white;")
         layout.addWidget(self.spin_tamano)
-
         layout.addWidget(QLabel("Color del Texto:"))
         self.btn_color = QPushButton("Elegir Color")
         self.color_seleccionado = color_actual
         self.btn_color.setStyleSheet(f"background-color: {color_actual}; color: black; font-weight: bold;")
         self.btn_color.clicked.connect(self.elegir_color)
         layout.addWidget(self.btn_color)
-
         btn_guardar = QPushButton("Aplicar Cambios")
         btn_guardar.setStyleSheet("background-color: #007acc; color: white; padding: 8px;")
         btn_guardar.clicked.connect(self.accept)
@@ -93,26 +92,75 @@ class ClockSettingsDialog(QDialog):
         self.resize(300, 150)
         self.setStyleSheet("background-color: #1e1e1e; color: white;")
         layout = QVBoxLayout()
-
         layout.addWidget(QLabel("Tamaño:"))
         self.spin_tamano = QSpinBox()
         self.spin_tamano.setRange(10, 80)
         self.spin_tamano.setValue(tamano_actual)
         self.spin_tamano.setStyleSheet("background-color: #2d2d2d; color: white;")
         layout.addWidget(self.spin_tamano)
-
         layout.addWidget(QLabel("Posición:"))
         self.combo_pos = QComboBox()
         self.combo_pos.addItems(["Arriba - Izquierda", "Arriba - Derecha", "Abajo - Izquierda", "Abajo - Derecha"])
         self.combo_pos.setCurrentText(pos_actual)
         self.combo_pos.setStyleSheet("background-color: #2d2d2d; color: white;")
         layout.addWidget(self.combo_pos)
-
         btn_guardar = QPushButton("Aplicar Cambios")
         btn_guardar.setStyleSheet("background-color: #007acc; color: white; padding: 8px;")
         btn_guardar.clicked.connect(self.accept)
         layout.addWidget(btn_guardar)
         self.setLayout(layout)
+
+class TransitionSettingsDialog(QDialog):
+    def __init__(self, parent, c_tipo, c_vel, b_tipo, b_vel):
+        super().__init__(parent)
+        self.setWindowTitle("Animaciones y Transiciones")
+        self.resize(350, 300)
+        self.setStyleSheet("background-color: #1e1e1e; color: white;")
+        layout = QVBoxLayout()
+
+        self.velocidades = {"Rápida (150ms)": 150, "Normal (300ms)": 300, "Suave (600ms)": 600}
+        self.tipos = ["Fade (Desvanecido)", "Corte Directo"]
+
+        def get_vel_key(val):
+            for k, v in self.velocidades.items():
+                if v == val: return k
+            return "Normal (300ms)"
+
+        def get_tipo_str(tipo_bd): return "Corte Directo" if tipo_bd == "Corte" else "Fade (Desvanecido)"
+
+        gb_canciones = QGroupBox("🎵 Transiciones para Canciones")
+        gb_canciones.setStyleSheet("QGroupBox { border: 1px solid #3d3d3d; border-radius: 5px; margin-top: 15px; font-weight: bold; } QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px; }")
+        fl_canciones = QFormLayout()
+        self.combo_c_tipo = QComboBox(); self.combo_c_tipo.addItems(self.tipos); self.combo_c_tipo.setCurrentText(get_tipo_str(c_tipo)); self.combo_c_tipo.setStyleSheet("background-color: #2d2d2d; color: white;")
+        self.combo_c_vel = QComboBox(); self.combo_c_vel.addItems(self.velocidades.keys()); self.combo_c_vel.setCurrentText(get_vel_key(c_vel)); self.combo_c_vel.setStyleSheet("background-color: #2d2d2d; color: white;")
+        fl_canciones.addRow("Efecto:", self.combo_c_tipo)
+        fl_canciones.addRow("Velocidad:", self.combo_c_vel)
+        gb_canciones.setLayout(fl_canciones)
+
+        gb_biblias = QGroupBox("📖 Transiciones para Biblias")
+        gb_biblias.setStyleSheet("QGroupBox { border: 1px solid #3d3d3d; border-radius: 5px; margin-top: 15px; font-weight: bold; } QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px; }")
+        fl_biblias = QFormLayout()
+        self.combo_b_tipo = QComboBox(); self.combo_b_tipo.addItems(self.tipos); self.combo_b_tipo.setCurrentText(get_tipo_str(b_tipo)); self.combo_b_tipo.setStyleSheet("background-color: #2d2d2d; color: white;")
+        self.combo_b_vel = QComboBox(); self.combo_b_vel.addItems(self.velocidades.keys()); self.combo_b_vel.setCurrentText(get_vel_key(b_vel)); self.combo_b_vel.setStyleSheet("background-color: #2d2d2d; color: white;")
+        fl_biblias.addRow("Efecto:", self.combo_b_tipo)
+        fl_biblias.addRow("Velocidad:", self.combo_b_vel)
+        gb_biblias.setLayout(fl_biblias)
+
+        layout.addWidget(gb_canciones)
+        layout.addWidget(gb_biblias)
+
+        btn_guardar = QPushButton("💾 Aplicar Cambios")
+        btn_guardar.setStyleSheet("background-color: #007acc; color: white; padding: 10px; font-weight: bold; margin-top: 10px;")
+        btn_guardar.clicked.connect(self.accept)
+        layout.addWidget(btn_guardar)
+        self.setLayout(layout)
+
+    def get_valores(self):
+        c_tipo = "Corte" if "Corte" in self.combo_c_tipo.currentText() else "Fade"
+        c_vel = self.velocidades[self.combo_c_vel.currentText()]
+        b_tipo = "Corte" if "Corte" in self.combo_b_tipo.currentText() else "Fade"
+        b_vel = self.velocidades[self.combo_b_vel.currentText()]
+        return c_tipo, c_vel, b_tipo, b_vel
 
 class ControlPanel(QMainWindow):
     def __init__(self, proyector, nombre_congregacion):
@@ -125,36 +173,33 @@ class ControlPanel(QMainWindow):
         
         self.esta_visible = True
         self.cambiando_perfil = False
+        self.tipo_proyeccion_actual = "cancion" 
+
         inicializar_db()
 
-        # --- CARGAR CONFIGURACIÓN ESPECÍFICA DE ESTE PERFIL ---
+        # --- CARGAR CONFIGURACIONES ---
         reloj_act = obtener_configuracion(f"{nombre_congregacion}_reloj_activo")
         self.reloj_activo = True if reloj_act == "1" else False
-        
-        reloj_tam = obtener_configuracion(f"{nombre_congregacion}_reloj_tamano")
-        reloj_tamano = int(reloj_tam) if (reloj_tam and reloj_tam.isdigit()) else 20
-        
-        reloj_pos = obtener_configuracion(f"{nombre_congregacion}_reloj_posicion")
-        reloj_posicion = reloj_pos if reloj_pos else "Arriba - Derecha"
+        reloj_tamano = int(obtener_configuracion(f"{nombre_congregacion}_reloj_tamano") or 20)
+        reloj_posicion = obtener_configuracion(f"{nombre_congregacion}_reloj_posicion") or "Arriba - Derecha"
         
         logo_act = obtener_configuracion(f"{nombre_congregacion}_logo_activo")
         self.logo_activo = True if logo_act == "1" else False
-        
         self.ruta_logo_global = obtener_configuracion(f"{nombre_congregacion}_logo_ruta")
         
-        letra_f = obtener_configuracion(f"{nombre_congregacion}_letra_fuente")
-        letra_fuente = letra_f if letra_f else "Segoe UI"
-        
-        letra_t = obtener_configuracion(f"{nombre_congregacion}_letra_tamano")
-        letra_tamano = int(letra_t) if (letra_t and letra_t.isdigit()) else 45
-        
-        letra_c = obtener_configuracion(f"{nombre_congregacion}_letra_color")
-        letra_color = letra_c if letra_c else "#ffffff"
+        letra_fuente = obtener_configuracion(f"{nombre_congregacion}_letra_fuente") or "Segoe UI"
+        letra_tamano = int(obtener_configuracion(f"{nombre_congregacion}_letra_tamano") or 45)
+        letra_color = obtener_configuracion(f"{nombre_congregacion}_letra_color") or "#ffffff"
 
-        # Aplicar preferencias guardadas al proyector de inmediato
+        c_tipo = obtener_configuracion(f"{self.nombre_congregacion}_trans_cancion_tipo") or "Fade"
+        c_vel = int(obtener_configuracion(f"{self.nombre_congregacion}_trans_cancion_vel") or 300)
+        b_tipo = obtener_configuracion(f"{self.nombre_congregacion}_trans_biblia_tipo") or "Fade"
+        b_vel = int(obtener_configuracion(f"{self.nombre_congregacion}_trans_biblia_vel") or 300)
+
         self.proyector.actualizar_estilo_texto(letra_fuente, letra_tamano, letra_color)
         self.proyector.configurar_reloj(reloj_tamano, reloj_posicion)
         self.proyector.toggle_reloj(self.reloj_activo)
+        self.proyector.configurar_transiciones(c_tipo, c_vel, b_tipo, b_vel)
         if self.ruta_logo_global and os.path.exists(self.ruta_logo_global):
             self.proyector.toggle_logo(self.logo_activo, self.ruta_logo_global)
 
@@ -167,27 +212,54 @@ class ControlPanel(QMainWindow):
         # --- COLUMNA 1: TABS (CANCIONES Y BIBLIAS) ---
         self.tabs = QTabWidget()
         
+        # TAB CANCIONES
         tab_canciones = QWidget()
         layout_canciones = QVBoxLayout(tab_canciones)
         layout_canciones.setContentsMargins(5, 10, 5, 5)
-        
         self.input_filtro = QLineEdit()
         self.input_filtro.setPlaceholderText("🔍 Buscar canción...")
         self.input_filtro.textChanged.connect(self.filtrar_canciones)
-        
         self.lista_recursos = QListWidget()
         self.lista_recursos.itemClicked.connect(self.cargar_diapositivas_cancion)
         self.lista_recursos.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.lista_recursos.customContextMenuRequested.connect(self.mostrar_menu_canciones)
-        
         layout_canciones.addWidget(self.input_filtro)
         layout_canciones.addWidget(self.lista_recursos)
         
+        # TAB BIBLIAS
         tab_biblias = QWidget()
         layout_biblias = QVBoxLayout(tab_biblias)
         layout_biblias.setContentsMargins(5, 10, 5, 5)
-        layout_biblias.addWidget(QLabel("📖 Selector de Libros y Capítulos (En desarrollo)"))
+        
+        # 1. Selectores de Biblia (Moviéndolo arriba para mejor UX)
+        filtros_biblia = QHBoxLayout()
+        self.combo_version = QComboBox(); self.combo_version.setStyleSheet("background-color: #2d2d2d;")
+        self.combo_libro = QComboBox(); self.combo_libro.setStyleSheet("background-color: #2d2d2d;")
+        self.combo_capitulo = QComboBox(); self.combo_capitulo.setStyleSheet("background-color: #2d2d2d;")
+        
+        self.combo_version.currentIndexChanged.connect(self.cargar_libros_ui)
+        self.combo_libro.currentIndexChanged.connect(self.cargar_capitulos_ui)
+        self.combo_capitulo.currentIndexChanged.connect(self.cargar_versiculos_ui)
+
+        filtros_biblia.addWidget(QLabel("Biblia:")); filtros_biblia.addWidget(self.combo_version)
+        filtros_biblia.addWidget(QLabel("Libro:")); filtros_biblia.addWidget(self.combo_libro)
+        filtros_biblia.addWidget(QLabel("Cap:")); filtros_biblia.addWidget(self.combo_capitulo)
+        
+        layout_biblias.addLayout(filtros_biblia)
+
+        # 2. Buscador local por capítulo
+        self.input_buscar_biblia = QLineEdit()
+        self.input_buscar_biblia.setPlaceholderText("🔍 Filtrar versículo en este capítulo (Ej: 3, amor, Dios)...")
+        self.input_buscar_biblia.setStyleSheet("background-color: #2d2d2d; border: 1px solid #3d3d3d; padding: 8px; border-radius: 4px; color: white;")
+        # Conectamos el evento textChanged para filtrar en tiempo real
+        self.input_buscar_biblia.textChanged.connect(self.filtrar_versiculos_capitulo)
+        layout_biblias.addWidget(self.input_buscar_biblia)
+        
+        # 3. Lista de Versículos
         self.lista_versiculos = QListWidget()
+        self.lista_versiculos.setWordWrap(True)
+        self.lista_versiculos.itemClicked.connect(self.previsualizar_versiculo)
+        self.lista_versiculos.itemDoubleClicked.connect(self.disparar_diapositiva_directo)
         layout_biblias.addWidget(self.lista_versiculos)
 
         self.tabs.addTab(tab_canciones, "🎵 Canciones")
@@ -208,17 +280,14 @@ class ControlPanel(QMainWindow):
         
         self.btn_reloj = QPushButton("⏱️")
         self.btn_reloj.setFixedSize(45, 45)
-        self.btn_reloj.setToolTip("Mostrar/Ocultar Reloj (Click Derecho para opciones)")
         self.btn_reloj.clicked.connect(self.toggle_reloj)
         self.btn_reloj.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.btn_reloj.customContextMenuRequested.connect(self.menu_editar_reloj)
 
         self.btn_logo = QPushButton("🖼️")
         self.btn_logo.setFixedSize(45, 45)
-        self.btn_logo.setToolTip("Mostrar/Ocultar Logo")
         self.btn_logo.clicked.connect(self.toggle_logo)
 
-        # Sincronizar colores visuales de los botones según el estado cargado
         self.btn_reloj.setStyleSheet("background-color: #007acc;" if self.reloj_activo else "background-color: #3d3d3d;")
         self.btn_logo.setStyleSheet("background-color: #007acc;" if self.logo_activo else "background-color: #3d3d3d;")
 
@@ -260,8 +329,85 @@ class ControlPanel(QMainWindow):
         widget_central.setLayout(layout_base)
         self.setCentralWidget(widget_central)
         
+        self.tabs.currentChanged.connect(self.actualizar_contexto_proyeccion)
+        
         self.cargar_canciones_desde_db()
         self.cargar_galeria_fondos()
+        self.cargar_versiones_ui()
+
+    # ================= FUNCIONES DE BIBLIA =================
+    def cargar_versiones_ui(self):
+        self.combo_version.blockSignals(True)
+        self.combo_version.clear()
+        versiones = obtener_versiones_biblia()
+        for v_id, nombre, abrev in versiones:
+            self.combo_version.addItem(f"{nombre} ({abrev})", v_id)
+        self.combo_version.blockSignals(False)
+        if self.combo_version.count() > 0:
+            self.cargar_libros_ui()
+
+    def cargar_libros_ui(self):
+        self.combo_libro.blockSignals(True)
+        self.combo_libro.clear()
+        v_id = self.combo_version.currentData()
+        if v_id:
+            libros = obtener_libros_biblia(v_id)
+            for l_id, nombre in libros:
+                self.combo_libro.addItem(nombre, l_id)
+        self.combo_libro.blockSignals(False)
+        if self.combo_libro.count() > 0:
+            self.cargar_capitulos_ui()
+
+    def cargar_capitulos_ui(self):
+        self.combo_capitulo.blockSignals(True)
+        self.combo_capitulo.clear()
+        l_id = self.combo_libro.currentData()
+        if l_id:
+            capitulos = obtener_capitulos_biblia(l_id)
+            for cap in capitulos:
+                self.combo_capitulo.addItem(str(cap), cap)
+        self.combo_capitulo.blockSignals(False)
+        if self.combo_capitulo.count() > 0:
+            self.cargar_versiculos_ui()
+
+    def cargar_versiculos_ui(self):
+        self.lista_versiculos.clear()
+        # Limpiamos el buscador al cambiar de capítulo para mostrar todo
+        self.input_buscar_biblia.clear()
+        
+        l_id = self.combo_libro.currentData()
+        cap = self.combo_capitulo.currentData()
+        libro_nombre = self.combo_libro.currentText()
+        if l_id and cap:
+            versiculos = obtener_versiculos_biblia(l_id, cap)
+            for ver_num, texto in versiculos:
+                item = QListWidgetItem(f"{ver_num}. {texto}")
+                item.setData(Qt.ItemDataRole.UserRole, (libro_nombre, cap, ver_num, texto))
+                self.lista_versiculos.addItem(item)
+
+    # NUEVA FUNCIÓN: Filtro en tiempo real dentro de la lista de versículos actual
+    def filtrar_versiculos_capitulo(self, texto):
+        for i in range(self.lista_versiculos.count()):
+            item = self.lista_versiculos.item(i)
+            # Ocultamos el versículo si no contiene el número o palabra buscada
+            item.setHidden(texto.lower() not in item.text().lower())
+
+    def previsualizar_versiculo(self, item):
+        if not item or not item.data(Qt.ItemDataRole.UserRole): return
+        libro_nombre, capitulo, ver_num, texto = item.data(Qt.ItemDataRole.UserRole)
+        texto_formateado = f"{texto}\n[{libro_nombre} {capitulo}:{ver_num}]"
+        
+        self.monitor_previa.setText(texto_formateado)
+        self.lista_diapositivas.clearSelection()
+
+    # ========================================================
+
+    def actualizar_contexto_proyeccion(self, index):
+        self.tipo_proyeccion_actual = "cancion" if index == 0 else "biblia"
+        if index == 1:
+            self.lista_diapositivas.hide()
+        else:
+            self.lista_diapositivas.show()
 
     def aplicar_tema_oscuro(self):
         estilo_oscuro = """
@@ -274,6 +420,8 @@ class ControlPanel(QMainWindow):
         QLineEdit, QTextEdit { background-color: #2d2d2d; border: 1px solid #3d3d3d; padding: 8px; border-radius: 4px; color: white; }
         QPushButton { background-color: #3d3d3d; border: none; padding: 8px; border-radius: 4px; color: white; }
         QPushButton:hover { background-color: #4d4d4d; }
+        QComboBox { background-color: #2d2d2d; border: 1px solid #3d3d3d; padding: 5px; color: white; border-radius: 4px; }
+        QComboBox QAbstractItemView { background-color: #2d2d2d; color: white; selection-background-color: #007acc; }
         QMenuBar { background-color: #2d2d2d; color: white; } 
         QMenuBar::item:selected { background-color: #007acc; }
         QMenu { background-color: #2d2d2d; border: 1px solid #3d3d3d; color: white; }
@@ -303,6 +451,7 @@ class ControlPanel(QMainWindow):
         menu_config.addAction("🖥️ Administrar Pantallas").triggered.connect(lambda: ScreenSettingsDialog(self).exec())
         menu_config.addAction("🎨 Editar Letra y Color").triggered.connect(self.abrir_editor_letras)
         menu_config.addAction("🖼️ Seleccionar Logo Global").triggered.connect(self.seleccionar_logo_archivo)
+        menu_config.addAction("🎞️ Animaciones y Transiciones").triggered.connect(self.abrir_configuracion_transiciones)
         
         menu_ayuda = menu_bar.addMenu("Ayuda")
         menu_ayuda.addAction("ℹ️ Acerca de LuminaCast").triggered.connect(self.mostrar_acerca_de)
@@ -310,19 +459,27 @@ class ControlPanel(QMainWindow):
     def cerrar_perfil(self):
         self.cambiando_perfil = True
         guardar_configuracion("ultimo_perfil", "")
-        if self.proyector:
-            self.proyector.close()
+        if self.proyector: self.proyector.close()
         self.close()
 
     def mostrar_acerca_de(self):
-        texto = (
-            "<h3>LuminaCast v1.0</h3>"
-            "<p>Software de proyección profesional.</p>"
-            "<p><b>Desarrollado por:</b> Eliecer Conrado<br>"
-            "<b>Correo:</b> eliecer.conrado@gmail.com</p>"
-            "<p><b>Estado:</b> Licencia Activa.</p>"
-        )
+        texto = ("<h3>LuminaCast v1.0</h3><p>Software de proyección profesional.</p><p><b>Desarrollado por:</b> Eliecer Conrado<br><b>Correo:</b> elieje13@gmail.com</p><p><b>Estado:</b> Licencia Activa.</p>")
         QMessageBox.about(self, "Acerca de LuminaCast", texto)
+
+    def abrir_configuracion_transiciones(self):
+        c_tipo = obtener_configuracion(f"{self.nombre_congregacion}_trans_cancion_tipo") or "Fade"
+        c_vel = int(obtener_configuracion(f"{self.nombre_congregacion}_trans_cancion_vel") or 300)
+        b_tipo = obtener_configuracion(f"{self.nombre_congregacion}_trans_biblia_tipo") or "Fade"
+        b_vel = int(obtener_configuracion(f"{self.nombre_congregacion}_trans_biblia_vel") or 300)
+
+        dialogo = TransitionSettingsDialog(self, c_tipo, c_vel, b_tipo, b_vel)
+        if dialogo.exec():
+            n_c_tipo, n_c_vel, n_b_tipo, n_b_vel = dialogo.get_valores()
+            guardar_configuracion(f"{self.nombre_congregacion}_trans_cancion_tipo", n_c_tipo)
+            guardar_configuracion(f"{self.nombre_congregacion}_trans_cancion_vel", str(n_c_vel))
+            guardar_configuracion(f"{self.nombre_congregacion}_trans_biblia_tipo", n_b_tipo)
+            guardar_configuracion(f"{self.nombre_congregacion}_trans_biblia_vel", str(n_b_vel))
+            self.proyector.configurar_transiciones(n_c_tipo, n_c_vel, n_b_tipo, n_b_vel)
 
     def seleccionar_logo_archivo(self):
         archivo, _ = QFileDialog.getOpenFileName(self, "Seleccionar Logo", "", "Imágenes (*.png *.jpg *.jpeg)")
@@ -337,10 +494,7 @@ class ControlPanel(QMainWindow):
             fuente = dialogo.combo_fuente.currentText()
             tamano = dialogo.spin_tamano.value()
             color = dialogo.color_seleccionado
-            
             self.proyector.actualizar_estilo_texto(fuente, tamano, color)
-            
-            # Guardar preferencias específicas de este perfil
             guardar_configuracion(f"{self.nombre_congregacion}_letra_fuente", fuente)
             guardar_configuracion(f"{self.nombre_congregacion}_letra_tamano", str(tamano))
             guardar_configuracion(f"{self.nombre_congregacion}_letra_color", color)
@@ -356,10 +510,7 @@ class ControlPanel(QMainWindow):
         if dialogo.exec():
             tamano = dialogo.spin_tamano.value()
             posicion = dialogo.combo_pos.currentText()
-            
             self.proyector.configurar_reloj(tamano, posicion)
-            
-            # Guardar preferencias específicas de este perfil
             guardar_configuracion(f"{self.nombre_congregacion}_reloj_tamano", str(tamano))
             guardar_configuracion(f"{self.nombre_congregacion}_reloj_posicion", posicion)
 
@@ -374,19 +525,15 @@ class ControlPanel(QMainWindow):
         menu.exec(self.lista_recursos.viewport().mapToGlobal(posicion))
 
     def agregar_nueva_cancion(self):
-        if DialogoCancion(self).exec(): 
-            self.cargar_canciones_desde_db()
+        if DialogoCancion(self).exec(): self.cargar_canciones_desde_db()
 
     def editar_cancion(self, item):
         song_id = item.data(Qt.ItemDataRole.UserRole)
-        if DialogoCancion(self, song_id=song_id, titulo=item.text(), letra=obtener_letra_cancion(song_id)).exec(): 
-            self.cargar_canciones_desde_db()
+        if DialogoCancion(self, song_id=song_id, titulo=item.text(), letra=obtener_letra_cancion(song_id)).exec(): self.cargar_canciones_desde_db()
 
     def eliminar_cancion_ui(self, item):
         if QMessageBox.question(self, "Confirmar", f"¿Eliminar '{item.text()}'?") == QMessageBox.StandardButton.Yes:
-            eliminar_cancion(item.data(Qt.ItemDataRole.UserRole))
-            self.cargar_canciones_desde_db()
-            self.lista_diapositivas.clear()
+            eliminar_cancion(item.data(Qt.ItemDataRole.UserRole)); self.cargar_canciones_desde_db(); self.lista_diapositivas.clear()
 
     def toggle_ojo(self):
         self.esta_visible = not self.esta_visible
@@ -397,7 +544,6 @@ class ControlPanel(QMainWindow):
         self.reloj_activo = not self.reloj_activo
         self.btn_reloj.setStyleSheet("background-color: #007acc;" if self.reloj_activo else "background-color: #3d3d3d;")
         self.proyector.toggle_reloj(self.reloj_activo)
-        # Persistir el estado del botón por perfil
         guardar_configuracion(f"{self.nombre_congregacion}_reloj_activo", "1" if self.reloj_activo else "0")
 
     def toggle_logo(self):
@@ -407,7 +553,6 @@ class ControlPanel(QMainWindow):
         self.logo_activo = not self.logo_activo
         self.btn_logo.setStyleSheet("background-color: #007acc;" if self.logo_activo else "background-color: #3d3d3d;")
         self.proyector.toggle_logo(self.logo_activo, self.ruta_logo_global)
-        # Persistir el estado del botón por perfil
         guardar_configuracion(f"{self.nombre_congregacion}_logo_activo", "1" if self.logo_activo else "0")
 
     def filtrar_canciones(self, texto):
@@ -417,11 +562,9 @@ class ControlPanel(QMainWindow):
 
     def cargar_galeria_fondos(self):
         self.lista_fondos.clear()
-        
         item_sin = QListWidgetItem("Sin Fondo")
         item_sin.setData(Qt.ItemDataRole.UserRole, "sin_fondo")
         self.lista_fondos.addItem(item_sin)
-        
         ruta = os.path.join(os.path.dirname(__file__), '../../assets/fondos')
         if os.path.exists(ruta):
             for f in os.listdir(ruta):
@@ -431,8 +574,7 @@ class ControlPanel(QMainWindow):
                     item.setData(Qt.ItemDataRole.UserRole, os.path.join(ruta, f))
                     self.lista_fondos.addItem(item)
 
-    def aplicar_fondo(self, item): 
-        self.proyector.cambiar_fondo(item.data(Qt.ItemDataRole.UserRole))
+    def aplicar_fondo(self, item): self.proyector.cambiar_fondo(item.data(Qt.ItemDataRole.UserRole))
 
     def cargar_canciones_desde_db(self):
         self.lista_recursos.clear()
@@ -446,23 +588,28 @@ class ControlPanel(QMainWindow):
         letra = obtener_letra_cancion(item.data(Qt.ItemDataRole.UserRole))
         if letra:
             for bloque in letra.split("\n\n"):
-                if bloque.strip(): 
-                    self.lista_diapositivas.addItem(QListWidgetItem(bloque.strip()))
+                if bloque.strip(): self.lista_diapositivas.addItem(QListWidgetItem(bloque.strip()))
 
     def previsualizar_diapositiva(self, item): 
         self.monitor_previa.setText(item.text())
+        self.lista_versiculos.clearSelection()
 
     def enviar_en_vivo(self):
         if "Selecciona" not in self.monitor_previa.text():
-            self.proyector.proyectar_texto(re.sub(r'\[.*?\]', '', self.monitor_previa.text()).strip())
+            if self.tipo_proyeccion_actual == "cancion":
+                texto_limpio = re.sub(r'\[.*?\]', '', self.monitor_previa.text()).strip()
+            else:
+                texto_limpio = self.monitor_previa.text().strip()
+            self.proyector.proyectar_texto(texto_limpio, self.tipo_proyeccion_actual)
 
     def disparar_diapositiva_directo(self, item): 
-        self.previsualizar_diapositiva(item)
+        if self.tipo_proyeccion_actual == "cancion":
+            self.previsualizar_diapositiva(item)
+        else:
+            self.previsualizar_versiculo(item)
         self.enviar_en_vivo()
 
     def closeEvent(self, event): 
-        if self.cambiando_perfil:
-            QApplication.instance().exit(42)
-        else:
-            QApplication.instance().exit(0)
+        if self.cambiando_perfil: QApplication.instance().exit(42)
+        else: QApplication.instance().exit(0)
         event.accept()
