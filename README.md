@@ -8,3 +8,10 @@ PowerShell:
 
 Windows:
 .\venv\Scripts\activate
+
+#Commit
+git add .
+git commit -m "Aquí escribes qué hiciste"
+
+#Subir datos
+git push origin main
