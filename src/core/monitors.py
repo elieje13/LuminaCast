@@ -1,36 +1,40 @@
 from PyQt6.QtGui import QGuiApplication
 from database.db_manager import obtener_configuracion
 
-def gestionar_pantallas(ventana_proyector):
+def gestionar_pantallas(ventana_proyector, ventana_stage=None):
     """
-    Detecta los monitores conectados y envía la ventana del proyector 
-    según la configuración elegida por el usuario en la base de datos.
+    Detecta los monitores conectados y envía las ventanas (Audiencia e Interna) 
+    según la configuración elegida por el usuario.
     """
     pantallas = QGuiApplication.screens()
     print(f"[LuminaCast] Monitores detectados: {len(pantallas)}")
 
-    # Leer qué pantalla eligió el usuario para Audiencia
-    idx_guardado = obtener_configuracion("pantalla_audience")
-    
-    # Si no hay nada guardado, asume el 1 (segundo monitor) o 0 si solo hay un monitor
-    idx = int(idx_guardado) if idx_guardado and idx_guardado.isdigit() else (1 if len(pantallas) > 1 else 0)
+    idx_audience = obtener_configuracion("pantalla_audience")
+    idx_stage = obtener_configuracion("pantalla_stage")
 
-    # Verificar que el monitor seleccionado realmente exista (por si se desconectó el HDMI)
-    if idx < len(pantallas):
-        pantalla_destino = pantallas[idx]
+    # 1. Configurar Proyector Principal (Audiencia)
+    idx_aud = int(idx_audience) if idx_audience and idx_audience.isdigit() else (1 if len(pantallas) > 1 else 0)
+    if idx_aud < len(pantallas):
+        pantalla_destino = pantallas[idx_aud]
         geometria = pantalla_destino.geometry()
-        
-        # Mover la ventana a las coordenadas de la pantalla configurada
         ventana_proyector.move(geometria.left(), geometria.top())
         
-        # Si es un monitor secundario (índice > 0), lo ponemos en FullScreen
-        if idx > 0:
+        if idx_aud > 0:
             ventana_proyector.showFullScreen()
-            print(f"[LuminaCast] Éxito: Proyección activada en pantalla secundaria ({idx}) a pantalla completa.")
+            print(f"[LuminaCast] Audiencia activada en monitor {idx_aud} (FullScreen).")
         else:
             ventana_proyector.show()
-            print(f"[LuminaCast] Proyección activada en ventana (Monitor Principal).")
-    else:
-        # Modo de contingencia (fallback)
-        ventana_proyector.show()
-        print("[LuminaCast] Advertencia: Monitor configurado no disponible. Modo ventana activado.")
+            print(f"[LuminaCast] Audiencia activada en ventana (Monitor Principal).")
+
+    # 2. Configurar Stage Display (Interno)
+    if ventana_stage:
+        if idx_stage and idx_stage.isdigit() and int(idx_stage) < len(pantallas):
+            idx_stg = int(idx_stage)
+            geo_stage = pantallas[idx_stg].geometry()
+            ventana_stage.move(geo_stage.left(), geo_stage.top())
+            ventana_stage.showFullScreen()
+            print(f"[LuminaCast] Stage Display activado en monitor {idx_stg} (FullScreen).")
+        else:
+            print("[LuminaCast] Stage Display no configurado o sin monitor válido. Quedará en segundo plano.")
+            # Descomenta la siguiente línea si quieres que se abra en ventana flotante aunque no haya monitor
+            # ventana_stage.show()
